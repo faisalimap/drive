@@ -24,8 +24,20 @@
                 <svg class="w-12 h-12 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
             </div>
             <h2 class="text-2xl font-semibold mb-6 text-center text-slate-900">Secure Drive Access</h2>
-            <input type="email" id="email" placeholder="Email address" class="w-full p-3 mb-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <input type="password" id="password" placeholder="Password" class="w-full p-3 mb-6 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            
+            <input type="email" id="email" placeholder="Email address" class="w-full p-3 mb-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
+            
+            <!-- Password Field with Toggle -->
+            <div class="relative w-full mb-6">
+                <input type="password" id="password" placeholder="Password" class="w-full p-3 pr-10 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
+                <button type="button" onclick="togglePassword()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none">
+                    <!-- Eye Open Icon (Default) -->
+                    <svg id="eye-icon-open" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                    <!-- Eye Closed / Slashed Icon (Hidden by default) -->
+                    <svg id="eye-icon-closed" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path></svg>
+                </button>
+            </div>
+
             <button onclick="login()" id="login-btn" class="w-full bg-indigo-600 text-white font-medium p-3 rounded-xl hover:bg-indigo-700 transition-all">Sign In</button>
             <p id="login-error" class="text-red-500 text-sm mt-4 text-center hidden">Authentication failed. Check credentials.</p>
         </div>
@@ -33,7 +45,7 @@
 
     <!-- DRIVE DASHBOARD -->
     <div id="dashboard" class="hidden flex-1 flex flex-col max-w-4xl mx-auto w-full p-4 sm:p-8">
-        
+
         <!-- Header -->
         <header class="flex justify-between items-center mb-8 pb-4 border-b border-slate-200">
             <div class="flex items-center gap-3">
@@ -48,13 +60,13 @@
         <!-- Upload Widget -->
         <div class="glass-panel border border-slate-200 rounded-2xl p-8 mb-8 text-center border-dashed border-2 hover:border-indigo-400 transition-all relative">
             <input type="file" id="file-picker" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleFileSelect()">
-            
+
             <div id="upload-ui" class="pointer-events-none">
                 <svg class="w-10 h-10 text-slate-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                 <p class="text-slate-700 font-medium text-lg">Tap to select a file</p>
                 <p class="text-slate-400 text-sm mt-1">Upload any file up to 100MB</p>
             </div>
-            
+
             <!-- Upload Action (Hidden until file selected) -->
             <div id="upload-action" class="hidden relative z-10 flex flex-col items-center">
                 <p id="selected-filename" class="text-slate-800 font-medium mb-4 truncate w-full max-w-md text-lg"></p>
@@ -83,11 +95,13 @@
 
     <script>
         // --- 1. CONFIGURATION ---
-        const PROJECT_ID = '6a8c8d1a002284d11da6'; // <--- PASTE PROJECT ID HERE
-        const BUCKET_ID = '6a8c8fe400135b0b3b9e';   // <--- PASTE BUCKET ID HERE
+        const PROJECT_ID = '6a8c8d1a002284d11da6';
+        const BUCKET_ID = '6a8c8fe400135b0b3b9e';   
 
         const { Client, Account, Storage, ID } = Appwrite;
-        const client = new Client().setEndpoint('https://cloud.appwrite.io/v1').setProject(PROJECT_ID);
+        
+        // UPDATED ENDPOINT FOR REGION (SGP)
+        const client = new Client().setEndpoint('https://sgp.cloud.appwrite.io/v1').setProject(PROJECT_ID);
         const account = new Account(client);
         const storage = new Storage(client);
 
@@ -101,33 +115,54 @@
         const progressBar = document.getElementById('upload-progress-bar');
         const progressContainer = document.getElementById('upload-progress-container');
 
-        // --- 3. AUTHENTICATION ---
+        // --- 3. AUTHENTICATION & UI ---
+        
+        // Toggles password visibility
+        function togglePassword() {
+            const pwdInput = document.getElementById('password');
+            const eyeOpen = document.getElementById('eye-icon-open');
+            const eyeClosed = document.getElementById('eye-icon-closed');
+            
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                eyeOpen.classList.add('hidden');
+                eyeClosed.classList.remove('hidden');
+            } else {
+                pwdInput.type = 'password';
+                eyeOpen.classList.remove('hidden');
+                eyeClosed.classList.add('hidden');
+            }
+        }
+
         async function checkSession() {
             try { await account.get(); showScreen('dashboard'); loadFiles(); } 
             catch { showScreen('login'); }
         }
 
-
-
-
-        
         async function login() {
             const btn = document.getElementById('login-btn');
-            btn.innerText = "Authenticating...";
+            const errorMsg = document.getElementById('login-error');
             
-            // HARDCODED CREDENTIALS - Type them exactly here
-            const testEmail = "g@g.ai"; 
-            const testPassword = "qwerty12";
-        
+            // Reverted back to taking values from the input boxes. Trim removes trailing spaces!
+            const userEmail = document.getElementById('email').value.trim();
+            const userPassword = document.getElementById('password').value;
+
+            if(!userEmail || !userPassword) {
+                errorMsg.innerText = "Please enter both email and password.";
+                errorMsg.classList.remove('hidden');
+                return;
+            }
+
+            btn.innerText = "Authenticating...";
+            errorMsg.classList.add('hidden');
+
             try {
-                // We are using the hardcoded variables instead of the input boxes
-                await account.createEmailPasswordSession(testEmail, testPassword);
-                alert("SUCCESS! The credentials work!");
+                await account.createEmailPasswordSession(userEmail, userPassword);
                 showScreen('dashboard');
                 loadFiles();
             } catch (err) {
-                alert("APPWRITE ERROR: " + err.message);
-                console.error(err);
+                errorMsg.innerText = "Authentication failed: " + err.message;
+                errorMsg.classList.remove('hidden');
             } finally {
                 btn.innerText = "Sign In";
             }
@@ -168,7 +203,7 @@
             const btn = document.getElementById('upload-btn');
             btn.disabled = true;
             progressContainer.classList.remove('hidden');
-            progressBar.style.width = '50%'; // Fake progress for visual feedback
+            progressBar.style.width = '50%'; 
 
             try {
                 await storage.createFile(BUCKET_ID, ID.unique(), file);
@@ -197,15 +232,11 @@
                     return;
                 }
 
-                // Sort files by newest first
                 const sortedFiles = response.files.sort((a, b) => new Date(b.$createdAt) - new Date(a.$createdAt));
 
                 sortedFiles.forEach(file => {
-                    // getFileView allows previewing without forcing a download
                     const viewUrl = storage.getFileView(BUCKET_ID, file.$id); 
-                    // getFileDownload forces a hard download
                     const downloadUrl = storage.getFileDownload(BUCKET_ID, file.$id);
-                    
                     const sizeMB = (file.sizeOriginal / (1024 * 1024)).toFixed(2);
                     const date = new Date(file.$createdAt).toLocaleDateString();
                     
@@ -218,23 +249,16 @@
                             <p class="text-slate-500 text-sm mt-1">${sizeMB} MB • Uploaded ${date}</p>
                         </div>
                         <div class="flex items-center gap-2 flex-wrap">
-                            <!-- View Button (Eye Icon) -->
                             <a href="${viewUrl}" target="_blank" class="flex items-center gap-1 px-3 py-2 bg-slate-50 text-slate-700 hover:bg-slate-100 rounded-xl transition-all text-sm font-medium border border-slate-200" title="View File">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                                 <span class="hidden sm:inline">View</span>
                             </a>
-                            
-                            <!-- Download Button (Arrow Down) -->
                             <a href="${downloadUrl}" download class="flex items-center gap-1 px-3 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl transition-all text-sm font-medium border border-indigo-100" title="Download">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                             </a>
-                            
-                            <!-- Rename Button (Pencil Icon) -->
                             <button onclick="renameFile('${file.$id}', '${file.name}')" class="p-2 text-slate-500 hover:bg-amber-50 hover:text-amber-600 rounded-xl transition-all border border-transparent hover:border-amber-200" title="Rename">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                             </button>
-                            
-                            <!-- Delete Button (Trash Icon) -->
                             <button onclick="deleteFile('${file.$id}')" class="p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all border border-transparent hover:border-red-200" title="Delete">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                             </button>
@@ -248,16 +272,12 @@
         }
 
         async function renameFile(fileId, currentName) {
-            // Prompts the user for a new name
             const newName = prompt("Enter a new name for this file (including extension):", currentName);
-            
-            // If user cancels or leaves it blank, do nothing
             if (!newName || newName === currentName) return;
 
             try {
-                // Appwrite SDK v14 updateFile requires bucketId, fileId, and the new name string
                 await storage.updateFile(BUCKET_ID, fileId, newName);
-                loadFiles(); // Refresh list to show new name
+                loadFiles(); 
             } catch (err) {
                 alert("Could not rename file: " + err.message);
             }
@@ -267,7 +287,7 @@
             if(confirm("Permanently delete this file? This cannot be undone.")) {
                 try {
                     await storage.deleteFile(BUCKET_ID, fileId);
-                    loadFiles(); // Refresh list
+                    loadFiles();
                 } catch(err) {
                     alert("Delete failed: " + err.message);
                 }
