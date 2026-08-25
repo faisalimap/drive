@@ -107,15 +107,27 @@
             catch { showScreen('login'); }
         }
 
+
+
+
+        
         async function login() {
             const btn = document.getElementById('login-btn');
             btn.innerText = "Authenticating...";
+            
+            // HARDCODED CREDENTIALS - Type them exactly here
+            const testEmail = "g@g.ai"; 
+            const testPassword = "qwerty12";
+        
             try {
-                await account.createEmailPasswordSession(document.getElementById('email').value, document.getElementById('password').value);
+                // We are using the hardcoded variables instead of the input boxes
+                await account.createEmailPasswordSession(testEmail, testPassword);
+                alert("SUCCESS! The credentials work!");
                 showScreen('dashboard');
                 loadFiles();
             } catch (err) {
-                document.getElementById('login-error').classList.remove('hidden');
+                alert("APPWRITE ERROR: " + err.message);
+                console.error(err);
             } finally {
                 btn.innerText = "Sign In";
             }
