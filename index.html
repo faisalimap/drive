@@ -236,7 +236,7 @@ async function login() {
     show($("dashboard"), "block");
     await loadFiles();
   } catch (e) {
-    error.textContent = "Authentication failed. Check the credentials.";
+    error.textContent = e.message || "Authentication failed. Check the credentials.";
     show(error);
   } finally {
     btn.disabled = false;
