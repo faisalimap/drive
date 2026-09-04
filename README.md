@@ -1,204 +1,85 @@
 # TXT Drive
 
-A lightweight, public **TXT file storage and sharing demo** built with a static frontend and Appwrite.
-
-**Live:** https://gle.qzz.io
-**Portfolio:** https://faisalimap.is-a.dev/drive
-
-## Features
-
-* 🔐 Authentication required
-* 📄 `.txt` files only
-* 📦 Maximum file size: **1 MB**
-* 📝 Built-in TXT file generator
-* 🔎 View TXT files directly in the browser
-* ⬇️ Download TXT files
-* 🚫 Users cannot delete files
-* 🚫 Users cannot rename files
-* ⚠️ Duplicate filename detection
-* 📊 Maximum **950 files** in the drive
-* 📱 Responsive interface
-* ☁️ Appwrite-powered authentication and storage
-* 🛡️ Server-side validation and rate limiting
-
-## Rate Limits
-
-The service uses server-side rate limits to prevent abuse.
-
-| Action     |                 Per IP | Per Account |
-| ---------- | ---------------------: | ----------: |
-| Uploads    |                 3/hour |     25/hour |
-| File views | 10 distinct files/hour |   Unlimited |
-| Downloads  |  5 distinct files/hour |   Unlimited |
-
-Viewing or downloading the **same file repeatedly** does not consume additional distinct-file limits.
-
-For uploads, both the IP and account limits apply.
-
-## Public Demo Accounts
-
-These accounts are intentionally provided for public demonstration:
-
-| Account | Email          | Password   |
-| ------- | -------------- | ---------- |
-| acc-1   | `email@me.dev` | `12345678` |
-| acc-2   | `u@t.me`       | `ux@12225` |
-| acc-3   | `q@x.com`      | `ux@12225` |
-
-These credentials are public by design and should **only** be used for the TXT Drive demo.
-
-## Public Upload Notice
-
-TXT Drive is a publicly available demonstration service.
-
-Uploaded files may be accessible to other users. Only `.txt` files up to 1 MB are accepted.
-
-Users cannot delete or rename uploaded files. The administrator may remove any file at any time.
-
-The administrator does not review, verify, endorse, or take responsibility for content uploaded through the public demo accounts.
-
-Do not upload:
-
-* Personal or confidential information
-* Passwords or credentials
-* Private documents
-* Illegal content
-* Sensitive information
-* Copyrighted material you do not have permission to share
-* Malicious or harmful content
-
-Use the service at your own discretion.
+A public, TXT-only Appwrite storage demo.
 
 ## Architecture
 
-```text
-Browser
-   │
-   ▼
-TXT Drive Frontend
-   │
-   ▼
-Appwrite Function
-   │
-   ├── Authentication
-   ├── File validation
-   ├── Duplicate checking
-   ├── Rate limiting
-   └── 950-file limit
-   │
-   ▼
-Appwrite Storage
-```
+Browser → Appwrite Auth → Appwrite Function → Appwrite Storage + Database
 
-The frontend does not rely on client-side checks for security. Important restrictions are enforced by the backend Function.
+The browser never receives an Appwrite API key and never directly reads/writes the storage bucket.
 
-## File Validation
+## Limits
 
-Every upload is validated server-side.
+- Authentication required
+- `.txt` only
+- 1 MiB maximum, enforced server-side
+- 950 files maximum
+- 3 uploads/IP/hour
+- 25 uploads/account/hour
+- 5 distinct files downloaded/IP/hour
+- 10 distinct files viewed/IP/hour
+- No user delete or rename
 
-The backend checks:
+View/download quotas are per distinct file. Re-opening the same file does not consume another slot.
 
-1. User is authenticated
-2. Filename is valid
-3. File extension is `.txt`
-4. Actual file size is no greater than 1 MB
-5. File contains valid UTF-8 text
-6. Filename does not already exist
-7. Drive contains fewer than 950 files
-8. IP upload limit has not been reached
-9. Account upload limit has not been reached
+## Appwrite setup
 
-The built-in TXT editor uses the same backend upload pipeline.
+1. Keep the existing project and storage bucket if desired.
+2. Configure the bucket:
+   - Maximum file size: 1 MB
+   - Allowed extensions: `txt`
+   - Enable antivirus if your Appwrite plan supports it
+   - Do not grant public read/write access to the bucket
+3. Create a database named `txt-drive-rate-limit`.
+4. Create a collection named `events`.
+5. Add these attributes:
+   - `action`: string, 20 chars
+   - `window`: integer
+   - `ipHash`: string, 64 chars
+   - `accountId`: string, 36 chars
+   - `fileKey`: string, 36 chars
+   - `createdAt`: datetime
+6. Add an index for `action`, `window`, `ipHash` and another for `action`, `window`, `accountId`.
+7. Create an Appwrite Function using `function/index.js`, Node.js runtime.
+8. Give the function dynamic API-key scopes for:
+   - Storage: read, create
+   - Databases: read, create, delete
+9. Add function variables:
+   - `BUCKET_ID=6a8c8fe400135b0b3b9e`
+   - `RATE_DATABASE_ID=<your database id>`
+   - `RATE_COLLECTION_ID=<your collection id>`
+   - `RATE_LIMIT_SALT=<long random secret>`
+   - `APPWRITE_FUNCTION_API_ENDPOINT=https://sgp.cloud.appwrite.io/v1`
+10. Set the function execute permission so authenticated users can execute it.
+11. Copy the function's generated HTTPS domain into `index.html` in `FUNCTION_DOMAIN_REPLACE`.
+12. Keep the function domain HTTPS-only.
+13. Add `gle.qzz.io` as an allowed web platform/origin in Appwrite.
+14. Put `index.html` on `gle.qzz.io`.
+15. Embed that page at `faisalimap.is-a.dev/drive`.
 
-## Storage
+## Important
 
-The project uses Appwrite for:
+Do not put an Appwrite API key in `index.html`.
 
-* User authentication
-* File storage
-* Rate-limit records
+The existing bucket should not be publicly readable/writable. All file access should pass through the function so the IP-based view/download limits cannot be bypassed by directly using Appwrite Storage URLs.
 
-The Storage bucket should remain private. Normal users should not receive direct Storage access.
+For a production-grade service, also consider a WAF/CDN rate limit in front of the function. The application-level limits here are the required portfolio-demo limits.
 
-File viewing and downloading should go through the backend Function so that the server-side limits cannot simply be bypassed.
+## Demo credentials
 
-## Project Structure
+The login page intentionally supports visible public demo accounts. Replace the three placeholders in `index.html` with the email/password pairs of the Appwrite accounts you create. These credentials are not secrets because they are meant to be published.
 
-```text
-txt-drive/
-├── index.html
-├── 404.html
-├── CNAME
-├── README.md
-└── function/
-    ├── index.js
-    └── package.json
-```
+## Storage permissions
 
-## Deployment
+Do not give the bucket `Role.any()` read access. The function is the only component that should have storage access. Users authenticate to the function, and the function uses its server-side dynamic API key to read/write the bucket.
 
-### Frontend
 
-The frontend can be hosted using GitHub Pages.
+## Appwrite Web platform
 
-The repository uses:
+Because the production frontend is hosted at `gle.qzz.io`, add a **Web** platform in the Appwrite project with hostname:
 
-```text
-CNAME
-```
+`gle.qzz.io`
 
-with:
+If you also test from a Vercel deployment, keep that exact Vercel hostname as another Web platform. Appwrite platform hostnames are used for CORS.
 
-```text
-gle.qzz.io
-```
-
-### Appwrite Function
-
-The backend is deployed as an Appwrite Function.
-
-Required environment variables:
-
-```text
-BUCKET_ID
-DATABASE_ID
-RATE_TABLE_ID
-RATE_LIMIT_SALT
-```
-
-The Function also requires its normal Appwrite server-side credentials provided by the Appwrite Function environment.
-
-### Appwrite Storage
-
-Configure the storage bucket with:
-
-```text
-Maximum file size: 1 MB
-Allowed extensions: txt
-```
-
-Keep the bucket private.
-
-### Database
-
-The rate-limit table stores server-side rate-limit records.
-
-The table should not be directly accessible to normal users.
-
-## Portfolio Integration
-
-The application is designed to be embedded into the portfolio at:
-
-```text
-https://faisalimap.is-a.dev/drive
-```
-
-using an iframe pointing to:
-
-```text
-https://gle.qzz.io
-```
-
-## License
-
-See [LICENSE](LICENSE).
+For the Function's generated domain, set its execute permission to **Any** because generated/custom Function domains execute as guests; the Function then validates the user's `x-appwrite-user-jwt` before allowing file operations.
