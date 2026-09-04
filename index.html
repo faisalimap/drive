@@ -746,39 +746,54 @@ async function checkSession() {
   currently authenticated Appwrite account.
 */
 async function callApi(action, data = {}) {
+
   const jwtResponse = await account.createJWT();
 
-  const response = await fetch(CONFIG.functionUrl, {
-    method: "POST",
+  const response = await fetch(
+    CONFIG.functionUrl,
+    {
+      method: "POST",
 
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${jwtResponse.jwt}`
-    },
+      headers: {
+        "Content-Type": "application/json",
+        "x-appwrite-user-jwt": jwtResponse.jwt
+      },
 
-    body: JSON.stringify({
-      action,
-      ...data,
-      jwt: jwtResponse.jwt
-    })
-  });
+      body: JSON.stringify({
+        action,
+        ...data,
+        jwt: jwtResponse.jwt
+      })
+    }
+  );
 
-  const payload = await response.json().catch(() => ({
-    message: "Invalid server response."
-  }));
+
+  const payload =
+    await response
+      .json()
+      .catch(() => ({
+        message: "Invalid server response."
+      }));
+
 
   if (!response.ok) {
+
     const error = new Error(
-      payload.message || "Request failed."
+      payload.message ||
+      "Request failed."
     );
 
     error.code = payload.error;
+
     error.status = response.status;
 
     throw error;
+
   }
 
+
   return payload;
+
 }
 
 

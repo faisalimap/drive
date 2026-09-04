@@ -72,9 +72,11 @@ function getEnv(name, ...aliases) {
 
 async function authenticate(jwt) {
   if (!jwt) return null;
-  const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT || "https://sgp.cloud.appwrite.io/v1";
-  const project = process.env.APPWRITE_FUNCTION_PROJECT_ID;
-  if (!project) return null;
+
+  const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT ||
+    "https://sgp.cloud.appwrite.io/v1";
+  const project = process.env.APPWRITE_FUNCTION_PROJECT_ID ||
+    "6a8c8d1a002284d11da6";
 
   const userClient = new Client()
     .setEndpoint(endpoint)
@@ -116,7 +118,10 @@ async function main({ req, res, log }) {
   }
 
   const body = req.bodyJson || {};
-  const jwt = req.headers["x-appwrite-user-jwt"] || req.headers.authorization?.replace(/^Bearer\s+/i, "") || body.jwt;
+  const injectedUserId = req.headers["x-appwrite-user-id"];
+  const jwt = req.headers["x-appwrite-user-jwt"] ||
+    req.headers.authorization?.replace(/^Bearer\s+/i, "") ||
+    body.jwt;
   let user;
 
   try {
@@ -127,6 +132,11 @@ async function main({ req, res, log }) {
   }
 
   if (!user) return fail(res, "Authentication required. Please sign in again.", 401);
+
+  if (injectedUserId && user.$id !== injectedUserId) {
+    log("Authenticated user ID did not match Appwrite injected user ID.");
+    return fail(res, "Authentication required. Please sign in again.", 401);
+  }
 
   const action = body.action;
 
@@ -298,10 +308,12 @@ async function main({ req, res, log }) {
 
       await enforceUploadLimits();
 
-      // One row is enough to count the upload for both IP and account limits.
-      // The unique key is intentionally different for each scope.
-      await recordUnique(`${ip}:upload:${userId}:${Date.now()}:${crypto.randomUUID()}`, "upload");
-      await recordUnique(`${userId}:upload:${ip}:${Date.now()}:${crypto.randomUUID()}`, "upload");
+      // One row contains both ipHash and accountId, so it counts once for
+      // both the per-IP and per-account upload quotas.
+      await recordUnique(
+        `${ip}:upload:${userId}:${Date.now()}:${crypto.randomUUID()}`,
+        "upload"
+      );
 
       const file = await storage.createFile({
         bucketId,
