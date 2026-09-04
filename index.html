@@ -748,13 +748,21 @@ async function checkSession() {
 */
 async function callApi(action, data = {}) {
 
+  // Create a fresh user JWT and include it in the execution body.
+  // This avoids relying on custom headers being forwarded by the Function
+  // execution endpoint. The Function validates the JWT server-side.
+  const jwtResponse = await account.createJWT();
+
   const execution = await functions.createExecution(
     CONFIG.functionId,
     JSON.stringify({
       action,
-      ...data
+      ...data,
+      jwt: jwtResponse.jwt
     }),
-    false
+    false,
+    "/",
+    "POST"
   );
 
   const payload =

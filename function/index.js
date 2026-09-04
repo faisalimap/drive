@@ -1,7 +1,7 @@
 const sdk = require("node-appwrite");
 const crypto = require("crypto");
 
-const { Client, Users, Storage, TablesDB, ID, Query, InputFile } = sdk;
+const { Client, Account, Users, Storage, TablesDB, ID, Query, InputFile } = sdk;
 
 const MAX_FILE_SIZE = 1000000;
 const MAX_FILES = 950;
@@ -101,30 +101,35 @@ async function main({ req, res, log }) {
   }
 
   const body = req.bodyJson || {};
-  const userId = req.headers["x-appwrite-user-id"];
 
-  if (!userId) {
+  // The browser explicitly forwards a session JWT. Validate it server-side
+  // instead of depending on x-appwrite-user-id being injected by the
+  // particular Function invocation path.
+  const jwt =
+    req.headers["x-appwrite-user-jwt"] ||
+    req.headers["authorization"]?.replace(/^Bearer\s+/i, "") ||
+    body.jwt ||
+    "";
+
+  if (!jwt) {
     return fail(res, "Authentication required. Please sign in again.", 401);
   }
 
   const action = body.action;
 
   const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT || "https://sgp.cloud.appwrite.io/v1";
-  const project = process.env.APPWRITE_FUNCTION_PROJECT_ID;
-  const functionKey = process.env.APPWRITE_FUNCTION_API_KEY;
-  const bucketId = process.env.BUCKET_ID;
-  const databaseId = getEnv("RATE_DATABASE_ID", "DATABASE_ID");
-  const tableId = getEnv("RATE_TABLE_ID", "RATE_COLLECTION_ID", "TABLE_ID");
-  const salt = process.env.RATE_LIMIT_SALT;
+  // These resource IDs belong to the existing TXT Drive Appwrite project.
+  // Environment variables may override them, but the function no longer fails
+  // merely because optional project configuration variables were not copied.
+  const project = process.env.APPWRITE_FUNCTION_PROJECT_ID || "6a8c8d1a002284d11da6";
+  const functionKey = process.env.APPWRITE_FUNCTION_API_KEY || req.headers["x-appwrite-key"];
+  const bucketId = process.env.BUCKET_ID || "6a8c8fe400135b0b3b9";
+  const databaseId = getEnv("RATE_DATABASE_ID", "DATABASE_ID") || "txtdrvonemb";
+  const tableId = getEnv("RATE_TABLE_ID", "RATE_COLLECTION_ID", "TABLE_ID") || "rate_limits";
 
-  if (!functionKey || !project || !bucketId) {
-    log("Missing required Function environment variables.");
-    return fail(res, "Server configuration is incomplete.", 500);
-  }
-
-  if (!databaseId || !tableId || !salt) {
-    log("Missing RATE database/table/salt environment variables.");
-    return fail(res, "Rate-limit storage is not configured.", 500);
+  if (!functionKey) {
+    log("No Appwrite function API key was injected.");
+    return fail(res, "Server configuration is incomplete: Appwrite API key is unavailable.", 500);
   }
 
   const client = new Client()
@@ -136,10 +141,17 @@ async function main({ req, res, log }) {
   const storage = new Storage(client);
   const tablesDB = new TablesDB(client);
 
+  let userId;
   try {
-    await users.get({ userId });
+    const userClient = new Client()
+      .setEndpoint(endpoint)
+      .setProject(project)
+      .setJWT(jwt);
+    const userAccount = new Account(userClient);
+    const user = await userAccount.get();
+    userId = user.$id;
   } catch (e) {
-    log(`Injected user validation failed: ${e.message}`);
+    log(`JWT validation failed: ${e.message}`);
     return fail(res, "Authentication required. Please sign in again.", 401);
   }
 
