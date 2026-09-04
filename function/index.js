@@ -1,9 +1,9 @@
 const sdk = require("node-appwrite");
 const crypto = require("crypto");
 
-const { Client, Account, Storage, TablesDB, ID, Query, InputFile } = sdk;
+const { Client, Users, Storage, TablesDB, ID, Query, InputFile } = sdk;
 
-const MAX_FILE_SIZE = 1024 * 1024;
+const MAX_FILE_SIZE = 1000000;
 const MAX_FILES = 950;
 const IP_UPLOAD_LIMIT = 3;
 const ACCOUNT_UPLOAD_LIMIT = 25;
@@ -70,23 +70,6 @@ function getEnv(name, ...aliases) {
   return "";
 }
 
-async function authenticate(jwt) {
-  if (!jwt) return null;
-
-  const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT ||
-    "https://sgp.cloud.appwrite.io/v1";
-  const project = process.env.APPWRITE_FUNCTION_PROJECT_ID ||
-    "6a8c8d1a002284d11da6";
-
-  const userClient = new Client()
-    .setEndpoint(endpoint)
-    .setProject(project)
-    .setJWT(jwt);
-
-  const userAccount = new Account(userClient);
-  return await userAccount.get();
-}
-
 async function fileNameExists(storage, bucketId, name) {
   const target = String(name).normalize("NFKC").toLocaleLowerCase();
   let offset = 0;
@@ -118,23 +101,9 @@ async function main({ req, res, log }) {
   }
 
   const body = req.bodyJson || {};
-  const injectedUserId = req.headers["x-appwrite-user-id"];
-  const jwt = req.headers["x-appwrite-user-jwt"] ||
-    req.headers.authorization?.replace(/^Bearer\s+/i, "") ||
-    body.jwt;
-  let user;
+  const userId = req.headers["x-appwrite-user-id"];
 
-  try {
-    user = await authenticate(jwt);
-  } catch (e) {
-    log(`JWT authentication failed: ${e.message}`);
-    return fail(res, "Authentication required. Please sign in again.", 401);
-  }
-
-  if (!user) return fail(res, "Authentication required. Please sign in again.", 401);
-
-  if (injectedUserId && user.$id !== injectedUserId) {
-    log("Authenticated user ID did not match Appwrite injected user ID.");
+  if (!userId) {
     return fail(res, "Authentication required. Please sign in again.", 401);
   }
 
@@ -163,9 +132,17 @@ async function main({ req, res, log }) {
     .setProject(project)
     .setKey(functionKey);
 
+  const users = new Users(client);
   const storage = new Storage(client);
   const tablesDB = new TablesDB(client);
-  const userId = user.$id;
+
+  try {
+    await users.get({ userId });
+  } catch (e) {
+    log(`Injected user validation failed: ${e.message}`);
+    return fail(res, "Authentication required. Please sign in again.", 401);
+  }
+
   const ip = req.headers["x-appwrite-client-ip"] || "unknown";
   const window = String(hourWindow());
   const ipHash = hash(ip);

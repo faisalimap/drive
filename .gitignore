@@ -1,0 +1,7 @@
+# Local Appwrite deployment/config backup
+appwrite.config.txt
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/

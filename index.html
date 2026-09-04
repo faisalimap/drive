@@ -439,12 +439,12 @@
   </div>
 
 <script>
-const { Client, Account } = Appwrite;
+const { Client, Account, Functions } = Appwrite;
 
 const CONFIG = {
   endpoint: "https://sgp.cloud.appwrite.io/v1",
   projectId: "6a8c8d1a002284d11da6",
-  functionUrl: "https://6a977463002acd2c89e1.sgp.appwrite.run/"
+  functionId: "txt-drive-api"
 };
 
 
@@ -470,7 +470,7 @@ const DEMO_ACCOUNTS = [
 ];
 
 
-const MAX_SIZE = 1024 * 1024;
+const MAX_SIZE = 1000000;
 const MAX_FILES = 950;
 
 const client = new Client()
@@ -478,6 +478,7 @@ const client = new Client()
   .setProject(CONFIG.projectId);
 
 const account = new Account(client);
+const functions = new Functions(client);
 
 let selectedFile = null;
 
@@ -747,36 +748,21 @@ async function checkSession() {
 */
 async function callApi(action, data = {}) {
 
-  const jwtResponse = await account.createJWT();
-
-  const response = await fetch(
-    CONFIG.functionUrl,
-    {
-      method: "POST",
-
-      headers: {
-        "Content-Type": "application/json",
-        "x-appwrite-user-jwt": jwtResponse.jwt
-      },
-
-      body: JSON.stringify({
-        action,
-        ...data,
-        jwt: jwtResponse.jwt
-      })
-    }
+  const execution = await functions.createExecution(
+    CONFIG.functionId,
+    JSON.stringify({
+      action,
+      ...data
+    }),
+    false
   );
 
-
   const payload =
-    await response
-      .json()
-      .catch(() => ({
-        message: "Invalid server response."
-      }));
+    JSON.parse(execution.responseBody || "{}");
 
+  const status = Number(execution.responseStatusCode || 200);
 
-  if (!response.ok) {
+  if (status < 200 || status >= 300) {
 
     const error = new Error(
       payload.message ||
@@ -784,17 +770,15 @@ async function callApi(action, data = {}) {
     );
 
     error.code = payload.error;
-
-    error.status = response.status;
+    error.status = status;
 
     throw error;
 
   }
 
-
   return payload;
-
 }
+
 
 
 /*
