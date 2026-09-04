@@ -1,85 +1,317 @@
 # TXT Drive
 
-A public, TXT-only Appwrite storage demo.
+A lightweight **TXT-only cloud storage demo** built as a public portfolio project.
 
-## Architecture
+TXT Drive allows authenticated users to upload, create, view, and download text files while enforcing server-side file validation, storage limits, duplicate-name protection, and rate limiting.
 
-Browser → Appwrite Auth → Appwrite Function → Appwrite Storage + Database
+**Live Demo:** `https://gle.qzz.io/`
 
-The browser never receives an Appwrite API key and never directly reads/writes the storage bucket.
+**Portfolio:** `https://faisalimap.is-a.dev/drive`
 
-## Limits
+---
 
-- Authentication required
-- `.txt` only
-- 1 MiB maximum, enforced server-side
-- 950 files maximum
-- 3 uploads/IP/hour
-- 25 uploads/account/hour
-- 5 distinct files downloaded/IP/hour
-- 10 distinct files viewed/IP/hour
-- No user delete or rename
+## Features
 
-View/download quotas are per distinct file. Re-opening the same file does not consume another slot.
+* 🔐 Authentication required, no guest access
+* 📄 `.txt` files only
+* 📏 Maximum file size: **1 MB**
+* 📦 Maximum storage: **950 files**
+* ⬆️ Upload existing TXT files
+* ✍️ Create TXT files directly in the browser
+* 📊 Live UTF-8 byte counter while creating files
+* 👀 Read-only file viewer
+* ⬇️ Download files
+* 🖱️ Drag-and-drop uploads
+* 🔄 Refresh file list
+* 🚪 Logout and session management
+* 🚫 Users cannot delete or rename files
+* 🛡️ Server-side validation
+* 🔁 Case-insensitive duplicate filename protection
+* ⚡ IP and account-based rate limiting
+* ⚠️ Public-service warning before entering the application
+* 👤 Public demo accounts for testing
 
-## Appwrite setup
+---
 
-1. Keep the existing project and storage bucket if desired.
-2. Configure the bucket:
-   - Maximum file size: 1 MB
-   - Allowed extensions: `txt`
-   - Enable antivirus if your Appwrite plan supports it
-   - Do not grant public read/write access to the bucket
-3. Create a database named `txt-drive-rate-limit`.
-4. Create a collection named `events`.
-5. Add these attributes:
-   - `action`: string, 20 chars
-   - `window`: integer
-   - `ipHash`: string, 64 chars
-   - `accountId`: string, 36 chars
-   - `fileKey`: string, 36 chars
-   - `createdAt`: datetime
-6. Add an index for `action`, `window`, `ipHash` and another for `action`, `window`, `accountId`.
-7. Create an Appwrite Function using `function/index.js`, Node.js runtime.
-8. Give the function dynamic API-key scopes for:
-   - Storage: read, create
-   - Databases: read, create, delete
-9. Add function variables:
-   - `BUCKET_ID=6a8c8fe400135b0b3b9e`
-   - `RATE_DATABASE_ID=<your database id>`
-   - `RATE_COLLECTION_ID=<your collection id>`
-   - `RATE_LIMIT_SALT=<long random secret>`
-   - `APPWRITE_FUNCTION_API_ENDPOINT=https://sgp.cloud.appwrite.io/v1`
-10. Set the function execute permission so authenticated users can execute it.
-11. Copy the function's generated HTTPS domain into `index.html` in `FUNCTION_DOMAIN_REPLACE`.
-12. Keep the function domain HTTPS-only.
-13. Add `gle.qzz.io` as an allowed web platform/origin in Appwrite.
-14. Put `index.html` on `gle.qzz.io`.
-15. Embed that page at `faisalimap.is-a.dev/drive`.
+## Rate Limits
 
-## Important
+TXT Drive uses multiple limits to prevent abuse.
 
-Do not put an Appwrite API key in `index.html`.
+| Action                           |     Limit |
+| -------------------------------- | --------: |
+| Uploads per IP                   |  3 / hour |
+| Uploads per account              | 25 / hour |
+| Distinct files viewed per IP     | 10 / hour |
+| Distinct files downloaded per IP |  5 / hour |
+| Total files                      |       950 |
+| Maximum file size                |      1 MB |
 
-The existing bucket should not be publicly readable/writable. All file access should pass through the function so the IP-based view/download limits cannot be bypassed by directly using Appwrite Storage URLs.
+Repeated views or downloads of the **same file** count only once within the applicable hourly window.
 
-For a production-grade service, also consider a WAF/CDN rate limit in front of the function. The application-level limits here are the required portfolio-demo limits.
+---
 
-## Demo credentials
+## Demo Accounts
 
-The login page intentionally supports visible public demo accounts. Replace the three placeholders in `index.html` with the email/password pairs of the Appwrite accounts you create. These credentials are not secrets because they are meant to be published.
+The project includes public demo accounts so visitors can test the application without creating their own account.
 
-## Storage permissions
+| Account | Email          | Password   |
+| ------- | -------------- | ---------- |
+| acc-1   | `email@me.dev` | `12345678` |
+| acc-2   | `u@t.me`       | `ux@12225` |
+| acc-3   | `q@x.com`      | `ux@12225` |
 
-Do not give the bucket `Role.any()` read access. The function is the only component that should have storage access. Users authenticate to the function, and the function uses its server-side dynamic API key to read/write the bucket.
+These credentials are intentionally public and should **never** be used for private or sensitive information.
 
+---
 
-## Appwrite Web platform
+## How It Works
 
-Because the production frontend is hosted at `gle.qzz.io`, add a **Web** platform in the Appwrite project with hostname:
+```text
+                    ┌──────────────────┐
+                    │   TXT Drive UI   │
+                    │    index.html    │
+                    └────────┬─────────┘
+                             │
+                             │ Authenticated request
+                             │
+                    ┌────────▼─────────┐
+                    │ Appwrite Function│
+                    │     Backend      │
+                    └───────┬───┬──────┘
+                            │   │
+                ┌───────────┘   └────────────┐
+                │                            │
+        ┌───────▼────────┐          ┌────────▼────────┐
+        │ Appwrite Auth  │          │ Appwrite Storage│
+        │    / Users     │          │   Private Files │
+        └────────────────┘          └─────────────────┘
+                                          
+                                    ┌─────────────────┐
+                                    │   TablesDB      │
+                                    │ Rate Limiting   │
+                                    └─────────────────┘
+```
 
-`gle.qzz.io`
+The frontend communicates with an Appwrite Function rather than directly exposing privileged storage operations.
 
-If you also test from a Vercel deployment, keep that exact Vercel hostname as another Web platform. Appwrite platform hostnames are used for CORS.
+The Function is responsible for:
 
-For the Function's generated domain, set its execute permission to **Any** because generated/custom Function domains execute as guests; the Function then validates the user's `x-appwrite-user-jwt` before allowing file operations.
+* Authentication
+* File validation
+* File size validation
+* Filename validation
+* Duplicate detection
+* Storage operations
+* Rate limiting
+* Storage capacity checks
+
+---
+
+## Security
+
+The frontend contains only public configuration required to communicate with Appwrite.
+
+Privileged Appwrite credentials are **not exposed in the frontend**.
+
+The backend validates every upload independently, meaning client-side checks are not treated as a security boundary.
+
+### Server-side checks
+
+Every upload is checked for:
+
+* `.txt` extension
+* Valid UTF-8 data
+* Maximum 1 MB size
+* Safe filename
+* Duplicate filename
+* Maximum file count
+* IP rate limits
+* Account upload limits
+* Valid authenticated user
+
+---
+
+## Project Structure
+
+```text
+txt-drive/
+│
+├── index.html
+├── 404.html
+├── CNAME
+├── README.md
+│
+└── function/
+    ├── index.js
+    ├── package.json
+    └── function.tar.gz
+```
+
+### Frontend
+
+`index.html` contains the complete TXT Drive interface, including:
+
+* Login
+* Demo accounts
+* Warning popup
+* File upload
+* Drag and drop
+* TXT creation
+* File viewer
+* Download controls
+* Session management
+
+### Backend
+
+`function/index.js` contains the server-side API.
+
+Supported operations include:
+
+```text
+list
+upload
+view
+download
+```
+
+Users intentionally do not have delete or rename operations.
+
+---
+
+## Appwrite Configuration
+
+TXT Drive uses:
+
+* **Appwrite Authentication**
+* **Appwrite Functions**
+* **Appwrite Storage**
+* **Appwrite TablesDB**
+
+Required backend environment variables include:
+
+```text
+APPWRITE_FUNCTION_PROJECT_ID
+APPWRITE_FUNCTION_API_ENDPOINT
+APPWRITE_API_KEY
+
+BUCKET_ID
+
+RATE_DATABASE_ID
+RATE_TABLE_ID
+RATE_LIMIT_SALT
+```
+
+The exact values should be configured in the Appwrite Function environment and **must not be committed to GitHub**.
+
+---
+
+## Running Locally
+
+Clone the repository:
+
+```bash
+git clone https://github.com/faisalimap/drive.git
+cd drive
+```
+
+Open `index.html` using a local web server.
+
+For example:
+
+```bash
+python -m http.server 8080
+```
+
+Then open:
+
+```text
+http://localhost:8080
+```
+
+The frontend requires the configured Appwrite project and deployed Function to be available.
+
+---
+
+## Deployment
+
+### Frontend
+
+The frontend can be deployed using GitHub Pages or another static hosting provider.
+
+Make sure the deployed domain is added as a **Web Platform** in the Appwrite project.
+
+### Backend
+
+The backend is deployed as an Appwrite Function.
+
+The deployment archive contains:
+
+```text
+index.js
+package.json
+```
+
+at the archive root.
+
+---
+
+## Important Notice
+
+TXT Drive is a **public demonstration project**.
+
+Files uploaded to the service may be accessible to other authenticated users. Do not upload:
+
+* Passwords
+* API keys
+* Tokens
+* Personal documents
+* Private information
+* Confidential business data
+* Sensitive credentials
+
+Users cannot remove their own files. The administrator may remove files at any time.
+
+---
+
+## Technology Stack
+
+* HTML
+* JavaScript
+* Tailwind CSS
+* Appwrite
+* Appwrite Functions
+* Appwrite Storage
+* Appwrite TablesDB
+* GitHub Pages
+
+---
+
+## Purpose
+
+TXT Drive was built as a portfolio project to demonstrate practical implementation of:
+
+* Authentication
+* Serverless backend development
+* Cloud storage
+* API design
+* File validation
+* Rate limiting
+* Database operations
+* Client/server security boundaries
+* Static web deployment
+
+---
+
+## Author
+
+**Faisal Muzaffar**
+
+GitHub: `https://github.com/faisalimap`
+
+Portfolio: `https://faisalimap.is-a.dev/`
+
+---
+
+## License
+
+This project is provided for demonstration and portfolio purposes.

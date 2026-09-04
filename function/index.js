@@ -14,7 +14,7 @@ const WINDOW_MS = 60 * 60 * 1000;
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, x-appwrite-user-jwt",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, x-appwrite-user-jwt",
   "Access-Control-Max-Age": "86400"
 };
 
@@ -115,7 +115,8 @@ async function main({ req, res, log }) {
     return fail(res, "Method not allowed.", 405);
   }
 
-  const jwt = req.headers["x-appwrite-user-jwt"];
+  const body = req.bodyJson || {};
+  const jwt = req.headers["x-appwrite-user-jwt"] || req.headers.authorization?.replace(/^Bearer\s+/i, "") || body.jwt;
   let user;
 
   try {
@@ -127,7 +128,6 @@ async function main({ req, res, log }) {
 
   if (!user) return fail(res, "Authentication required. Please sign in again.", 401);
 
-  const body = req.bodyJson || {};
   const action = body.action;
 
   const endpoint = process.env.APPWRITE_FUNCTION_API_ENDPOINT || "https://sgp.cloud.appwrite.io/v1";

@@ -755,13 +755,13 @@ async function callApi(action, data = {}) {
       method: "POST",
 
       headers: {
-        "Content-Type": "application/json",
-        "x-appwrite-user-jwt": jwtResponse.jwt
+        "Content-Type": "application/json"
       },
 
       body: JSON.stringify({
         action,
-        ...data
+        ...data,
+        jwt: jwtResponse.jwt
       })
     }
   );
